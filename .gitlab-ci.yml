@@ -1,0 +1,78 @@
+# CI for the lssc alignment-respecting copy/init routines.
+#
+# Four jobs: {x86_64, aarch64} x {gcc, clang}.
+#
+# Both architectures run natively on GitLab's hosted runners --
+# saas-linux-small-amd64 and saas-linux-small-arm64 are each available on the
+# Free tier at cost factor 1 -- so the aarch64 results are real silicon, not
+# emulation. That matters here: this code branches on MWORD_SIZE / MMIN_ALIGN
+# per CPU and issues sub-word stores whose alignment only has teeth on a
+# strict-alignment target.
+#
+# The jobs are spelled out rather than generated with parallel:matrix. Tags do
+# support variable expansion, but if it ever failed the jobs would sit pending
+# against a runner tag that does not exist rather than failing loudly, and
+# four explicit blocks are cheap.
+
+# Quota note: the Free tier gets 400 compute minutes a month. A full pipeline
+# is four jobs of roughly two minutes each -- about a minute of toolchain
+# install plus 30-60s of `make check` -- so budget ~8-10 minutes per pipeline.
+# The workflow rules below keep a branch and its merge request from each
+# spending that, and interruptible lets a new push cancel a superseded run.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+default:
+  image: debian:bookworm-slim
+  interruptible: true
+  before_script:
+    # libasan8/libubsan1 are gcc's sanitizer runtimes and libclang-rt-dev is
+    # clang's; neither compiler package pulls its own in under
+    # --no-install-recommends, and test-san / test-asan need them.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends
+        make gcc clang libasan8 libubsan1 libclang-rt-dev
+    - $CC --version | head -1
+
+stages:
+  - test
+
+# `make check` is the suite itself, then UBSan over it, then ASan restricted
+# to stores and to the thread-safe routines, then the MWORD_SIZE / MMIN_ALIGN
+# matrix, then the concurrent-neighbour check. That last one wants two cores
+# to interleave on; the small runners have two. If it ever lands somewhere
+# single-core the plain routines report "inconclusive" rather than failing --
+# only the (T) routines gate the build.
+.check:
+  stage: test
+  script:
+    - make check CC=$CC
+
+x86_64 clang:
+  extends: .check
+  tags: [saas-linux-small-amd64]
+  variables:
+    CC: clang
+
+x86_64 gcc:
+  extends: .check
+  tags: [saas-linux-small-amd64]
+  variables:
+    CC: gcc
+
+aarch64 clang:
+  extends: .check
+  tags: [saas-linux-small-arm64]
+  variables:
+    CC: clang
+
+aarch64 gcc:
+  extends: .check
+  tags: [saas-linux-small-arm64]
+  variables:
+    CC: gcc
