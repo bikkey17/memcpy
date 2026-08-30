@@ -1,3 +1,7 @@
+/* Aligned (L)oad-(S)hift-(S)tore memory (C)opy
+ * Copyright (c) 2021-26 bikkey {github,gitlab}.com/bikkey17
+ * SPDX-License-Identifier: MIT
+ */
 #include <unity.h>
 #include <stdlib.h>
 #include "lssc.h"

@@ -2,7 +2,7 @@
  * (L)ittle-endian
  * (R)everse
  *
- * Copyright (c) 2021-26 Bikkey {github,gitlab}.com/bikkey17
+ * Copyright (c) 2021-26 bikkey {github,gitlab}.com/bikkey17
  * SPDX-License-Identifier: MIT
  */
 #include <stddef.h>
