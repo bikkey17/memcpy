@@ -18,6 +18,10 @@
 | `memcpy`      | big        | forward   | yes         | TBD            |
 | `memcpy`      | big        | reverse   | no          | TBD            |
 | `memcpy`      | big        | reverse   | yes         | TBD            |
+| `memset`      | big        | (forward) | no          | TBD            |
+| `memset`      | big        | (forward) | yes         | TBD            |
+| `bzero`       | big        | (forward) | no          | TBD            |
+| `bzero`       | big        | (forward) | yes         | TBD            |
 
 `memmove` is trivial
 

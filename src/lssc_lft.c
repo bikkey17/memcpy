@@ -3,7 +3,7 @@
  * (F)oward
  * (T)hread-safe
  *
- * Copyright (c) 2021-26 Bikkey {github,gitlab}.com/bikkey17
+ * Copyright (c) 2021-26 bikkey {github,gitlab}.com/bikkey17
  * SPDX-License-Identifier: MIT
  */
 #include <stdint.h>

@@ -1,6 +1,6 @@
 #pragma once
 /* Aligned (L)oad-(S)hift-(S)tore memory (C)opy
- * Copyright (c) 2021-26 Bikkey {github,gitlab}.com/bikkey17
+ * Copyright (c) 2021-26 bikkey {github,gitlab}.com/bikkey17
  * SPDX-License-Identifier: MIT
  */
 

@@ -13,6 +13,8 @@
 # support variable expansion, but if it ever failed the jobs would sit pending
 # against a runner tag that does not exist rather than failing loudly, and
 # four explicit blocks are cheap.
+#
+# Made by Opus 5
 
 # Quota note: the Free tier gets 400 compute minutes a month. A full pipeline
 # is four jobs of roughly two minutes each -- about a minute of toolchain
