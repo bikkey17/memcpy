@@ -54,7 +54,7 @@ LINK_OBJS      := $(OBJ_FILES) $(UNITY_OBJ)
 TEST_BINS      := $(C_FILES_TEST:$(SRC_DIR)/%.tests.c=$(OUT_DIR)/%.tests)
 DEP_FILES      := $(LINK_OBJS:%.o=%.d) $(TEST_BINS:%=%.d)
 
-.PHONY: all test check test-san test-asan test-configs test-mt clean
+.PHONY: all test check test-san test-asan test-configs test-mt bench clean
 
 all: test
 
@@ -139,6 +139,15 @@ test-mt: $(OUT_DIR)/lssc_mt
 $(OUT_DIR)/lssc_mt: $(DEV_DIR)/lssc_mt.c $(OBJ_FILES) $(PRJ_DIR)/Makefile
 	@mkdir -p $(@D)
 	$(CC) $(C_FLAGS) -pthread -MMD -MP -MF $@.d $< $(OBJ_FILES) -o $@
+
+# Deliberately not part of `check`: timing-sensitive, so it would only make CI
+# flaky. Run it by hand when you care.
+bench: $(OUT_DIR)/lssc_bench
+	@$(OUT_DIR)/lssc_bench
+
+$(OUT_DIR)/lssc_bench: $(DEV_DIR)/lssc_bench.c $(OBJ_FILES) $(PRJ_DIR)/Makefile
+	@mkdir -p $(@D)
+	$(CC) $(C_FLAGS) -MMD -MP -MF $@.d $< $(OBJ_FILES) -o $@
 
 clean:
 	rm -rf $(OUT_DIR)

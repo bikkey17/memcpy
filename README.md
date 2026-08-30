@@ -2,7 +2,10 @@
 
 [![pipeline status](https://gitlab.com/bikkey17/memcpy/badges/master/pipeline.svg)](https://gitlab.com/bikkey17/memcpy/-/commits/master)
 
-`memcpy`/`memset`/`bzero` equivalents that align memory access so they work without MMU.
+Portable `memcpy`/`memset`/`bzero` equivalents that align memory access and use
+wide registers to improve throughput over byte-sized access. Rarely useful
+except as baseline when you don't have optimising compilers or an MMU dealing
+with alignment faults. Do your benchmarks.
 
 | Functionality | Endianness | Direction | Thread-Safe | Implemented by |
 |---------------|------------|-----------|-------------|----------------|
@@ -23,25 +26,26 @@
 | `bzero`       | big        | (forward) | no          | TBD            |
 | `bzero`       | big        | (forward) | yes         | TBD            |
 
-`memmove` is trivial
-
-    void *memmove(void *dest, const void *src, size_t n)
-    {
-        if (src < dest)
-            lssc_lrt(dest, src, n);
-        else
-            lssc_lft(dest, src, n);
-        return dest;
-    }
+```c
+void *memmove(void *dest, const void *src, size_t n)
+{
+    if (src < dest)
+        lssc_lrt(dest, src, n);
+    else
+        lssc_lft(dest, src, n);
+    return dest;
+}
+```
 
 ## Build/Test
 
-    make            # build and run the unit tests (the default target)
-    make check      # everything CI runs
-    make clean
+```sh
+make            # build and run the unit tests (the default target)
+make check      # everything CI runs
+make clean
+```
 
 **Compilers**: `clang` (default), `gcc` (`make CC=gcc`)
-
 
 | variable  | default | notes                                                    |
 |-----------|---------|----------------------------------------------------------|
@@ -50,18 +54,18 @@
 | `OUT_DIR` | `out/`  |                                                          |
 | `XFLAGS`  |         | custom CC options, passed at the end of the command line |
 
-
-| target         | effect                                                  |
-|----------------|---------------------------------------------------------|
-| `all`          | `test`                                                  |
-| `check`        | all `test*` targets, ~30s from clean                     |
-| `clean`        | empties `OUT_DIR`                                       |
-| `print.VAR`    | prints Makefile variable `VAR` (for Makefile debugging) |
-| `test`         | correctness, every alignment pair, host geometry only   |
-| `test-configs` | the same suite for 8 `MWORD_SIZE`/`MMIN_ALIGN` pairs    |
-| `test-san`     | UBSan over the suite                                    |
-| `test-asan`    | ASan, stores only, thread-safe routines only            |
-| `test-mt`      | concurrent neighbour: the thread-safety promise         |
+| target         | effect                                                    |
+|----------------|-----------------------------------------------------------|
+| `all`          | `test`                                                    |
+| `bench`        | run a phoney benchmark                                    |
+| `check`        | all `test*` targets, ~30s from clean                      |
+| `clean`        | empties `OUT_DIR`                                         |
+| `print.VAR`    | prints Makefile variable `VAR` (for Makefile debugging)   |
+| `test`         | correctness for current CPU's `MWORD_SIZE` / `MMIN_ALIGN` |
+| `test-configs` | test for other `MWORD_SIZE`/`MMIN_ALIGN` pairs            |
+| `test-san`     | run UBSan                                                 |
+| `test-asan`    | run ASan (stores-only) for thread-safe routines           |
+| `test-mt`      | thread-safety fuzzing                                     |
 
 The sanitizer targets need runtimes, which are separate packages on Debian:
 `libasan8` and `libubsan1` for `gcc`, `libclang-rt-dev` for `clang`.

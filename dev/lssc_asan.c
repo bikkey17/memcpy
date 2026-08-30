@@ -1,26 +1,24 @@
 /* Write-outside-dest check for the (T) variants, under AddressSanitizer.
  *
- * Only the (T) routines are exercised here, and that restriction is what
- * makes the target possible at all. Every variant in this library loads a
- * whole aligned MWORD_t at each end of the run, so all of them read past
- * both buffers by design; ASan cannot tell that from a real overrun. Turning
- * reads off (-mllvm -asan-instrument-reads=false, see the Makefile) leaves
- * only stores instrumented, and "never stores outside dest" is exactly what
- * lssc_lft, lssc_lrt, init_lft and zero_lft promise. Their plain siblings
- * write the whole edge word back and would abort here, correctly, which is
- * why they are not in the table.
+ * Only the (T) routines are exercised, which is what makes the target usable.
+ * Every variant in this library loads a whole aligned MWORD_t at each end of
+ * the run, so all of them read past both buffers by design, and ASan cannot
+ * distinguish that from a real overrun. Turning reads off (-mllvm
+ * -asan-instrument-reads=false, see the Makefile) leaves only stores
+ * instrumented, which is the property lssc_lft, lssc_lrt, init_lft and
+ * zero_lft hold to. Their plain siblings write the whole edge word back and
+ * would abort this harness, so they are not included.
  *
- * This is the deterministic counterpart to lssc_mt.c. That one can only
- * observe a stray write if a neighbouring thread happens to interleave with
- * it; here the shadow map catches the store itself, on every call.
+ * The deterministic counterpart to lssc_mt.c: that one observes a stray write
+ * only when a neighbouring thread interleaves with it, whereas the shadow map
+ * catches the store itself on every call.
  *
- * dest is placed at the very end of its allocation so the byte one past it
- * is redzone: ASan tracks the right edge of a heap block exactly, to the
- * byte, whatever the alignment. The margin below dest is poisoned by hand,
- * which is only accurate to ASan's 8-byte shadow granularity -- see the
- * comment on low_margin_is_watched() below for what that does and does not
- * cover.
- * 
+ * dest sits at the end of its allocation so the byte past it is redzone, ASan
+ * tracking the right edge of a heap block to the byte at any alignment. The
+ * margin below dest is poisoned by hand, which is accurate only to ASan's
+ * 8-byte shadow granularity; see low_margin_is_watched() below for what that
+ * does and does not cover.
+ *
  * Made by Opus 5
  */
 #include <stdio.h>

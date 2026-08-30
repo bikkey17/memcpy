@@ -1,25 +1,24 @@
 /* Concurrent-neighbour check for the (T) variants.
  *
- * lssc_lft, lssc_lrt, init_lft and zero_lft promise never to touch a byte
- * outside dest. A single threaded test cannot see a violation: the plain
- * variants read the edge word, replace the middle and write the whole word
- * back, so the bytes around dest end up holding exactly what they held
- * before. The difference only becomes observable if somebody else writes
- * those bytes *between* that load and that store -- then the write-back puts
- * the old value back and the other writer's update is lost.
+ * lssc_lft, lssc_lrt, init_lft and zero_lft never touch a byte outside dest.
+ * A single-threaded test cannot see a violation of that: the plain variants
+ * read the edge word, replace the middle and write the whole word back, so the
+ * bytes around dest end up holding what they held before. The difference
+ * becomes observable only if something else writes those bytes between that
+ * load and that store, because the write-back then restores the old value and
+ * the other writer's update is lost.
  *
- * So: a neighbour thread owns a counter in the margin on each side of dest
- * and checks that what it reads back is what it just wrote. Only the routine
- * under test could have changed it, which makes a mismatch a direct
- * observation of a write outside dest -- no timing assumption in the failing
- * direction. A clean run is weaker evidence than a dirty one, which is why
- * only the (T) variants are a gate; for the others a quiet run just means the
- * window never opened and is reported as inconclusive rather than as a pass.
+ * So a neighbour thread owns a counter in the margin on each side of dest and
+ * checks that what it reads back is what it just wrote. Nothing but the
+ * routine under test could have changed it, so a mismatch is a direct
+ * observation of a write outside dest and does not depend on timing. A clean
+ * run is weaker evidence than a dirty one, so only the (T) variants gate the
+ * build; for the others a quiet run means the window never opened, and is
+ * reported as inconclusive rather than as a pass.
  *
- * The counters must be volatile. Without it the compiler is entitled to
- * assume nothing else writes them (a data race being undefined anyway) and
- * folds the read-back into the value just written, so the check silently
- * becomes a tautology.
+ * The counters must be volatile. Otherwise the compiler may assume nothing
+ * else writes them, a data race being undefined in any case, and fold the
+ * read-back into the value just written, leaving the check a tautology.
  *
  * Made by Opus 5
  */
