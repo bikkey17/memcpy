@@ -297,7 +297,7 @@ int main(void)
     printf("\nmisaligned -- word_copy is not legal here at all. word_copy_ua is\n"
            "the same loop with the hardware absorbing the mismatch, which needs a\n"
            "config that permits unaligned access -- not no-MMU AArch64 (n = 4096)\n");
-    printf("  %6s %6s %12s %10s", "src%W", "dst%W", "word_copy_ua", "byte_copy");
+    printf("  %6s %6s %12s %10s", "src", "dst", "word_copy_ua", "byte_copy");
     for (unsigned v = 0; v < NV; v++) printf(" %9s", V[v].name);
     printf(" %9s\n", "memcpy");
     static const size_t offs[][2] = {
@@ -305,7 +305,7 @@ int main(void)
     };
     for (unsigned i = 0; i < sizeof offs / sizeof *offs; i++) {
         size_t so = offs[i][0], dof = offs[i][1];
-        printf("  %6zu %6zu %12.1f %10.1f", so % MWORD_SIZE, dof % MWORD_SIZE,
+        printf("  %6zu %6zu %12.1f %10.1f", so, dof,
                gbps(word_copy_ua, so, dof, 4096), gbps(byte_copy, so, dof, 4096));
         for (unsigned v = 0; v < NV; v++) printf(" %9.1f", gbps(V[v].fn, so, dof, 4096));
         printf(" %9.1f\n", gbps(libc_copy, so, dof, 4096));

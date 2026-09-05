@@ -29,6 +29,15 @@ on a check: break the thing on a scratch copy under `/tmp`, confirm the check
 reports it, restore, and say in the commit or the reply that you did. Do not
 edit `src/` in place for this.
 
+The same applies to measurements, where the failure is measuring something
+other than what you meant. `make bench` has produced plausible wrong numbers
+three ways: baselines inlined into the timing loop while the real routines
+still paid a call; a copy deleted as dead code because nothing observed `dest`;
+and a byte-loop baseline auto-vectorised into the unaligned vector copy it was
+meant to contrast with. `dev/lssc_bench.c` documents all three, each with a
+command to check for it. It is not part of `check` -- too timing-sensitive to
+gate on, and the noise floor on a shared machine can exceed 30%.
+
 ## Traps
 
 **The out-of-bounds access is deliberate. Do not "fix" it.** Every routine
@@ -60,3 +69,18 @@ write 240 bytes past the end of `dest`.
 **Forward and reverse are line-by-line mirrors** (`lf`<->`lr`, `lft`<->`lrt`);
 all shifts and pointer updates reverse. Fix one, check the other. Diffing the
 pair is the fastest review available here.
+
+**Unaligned access is not available on the target**, so the obvious
+simplification -- load and store unaligned words and let the hardware sort it
+out -- does not apply. With the MMU disabled on AArch64 every data access is
+Device-nGnRnE, and unaligned access to Device memory faults, including one
+sitting entirely inside a page. The header of `dev/lssc_bench.c` has the matrix
+of where it is and is not permitted.
+
+## Commentary
+
+The comments carry more weight here than usual: the code is short and what
+makes it correct is not. Keep them plain and factual. No all-caps headings, no
+"X, not Y" phrasing for emphasis, no telling the reader that something is the
+point or is important, and no describing an approach as honest, which is
+assumed. State the fact and its consequence and stop.

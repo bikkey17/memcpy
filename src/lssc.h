@@ -7,7 +7,9 @@
 #ifndef MWORD_SIZE
 
 #ifdef __aarch64__
-#define MWORD_SIZE 16
+// MWORD_SIZE 16 isn't improving much for unaligned access
+// and performs worse when data is 8-byte aligned
+#define MWORD_SIZE 8
 #define MMIN_ALIGN 8
 #endif
 
@@ -17,7 +19,9 @@
 #endif
 
 #ifdef __x86_64__
-#define MWORD_SIZE 16
+// MWORD_SIZE 16 isn't improving much for unaligned access
+// and performs worse when data is 8-byte aligned
+#define MWORD_SIZE 8
 #define MMIN_ALIGN 8
 #endif
 
