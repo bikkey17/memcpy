@@ -79,7 +79,39 @@ CI runs `make check` for {`x86_64`, `aarch64`} x {`gcc`, `clang`}.
 
 All speedups are rounded to nearest integer and relative to `byte_copy` of the same row.
 
-### i7U 155H, clang version 22.1.6 
+### RPi4, Raspberry Pi OS (64-bit), clang version 19.1.7 (3+b1)
+
+#### Speedup (page-aligned)
+
+| Size    | `byte_copy` | `word_copy` | `lssc_lf` | `lssc_lft` | `lssc_lr` | `lssc_lrt` | `memcpy` |
+|---------|-------------|-------------|-----------|------------|-----------|------------|----------|
+| 64      | 1           | 5           | 4         | 4          | 4         | 3          | 9        |
+| 256     | 1           | 11          | 10        | 10         | 9         | 9          | 10       |
+| 1024    | 1           | 13          | 11        | 11         | 11        | 11         | 16       |
+| 4096    | 1           | 13          | 13        | 13         | 13        | 13         | 16       |
+| 65536   | 1           | 8           | 12        | 12         | 12        | 12         | 10       |
+| 262144  | 1           | 6           | 7         | 8          | 9         | 9          | 6        |
+| 1048576 | 1           | 4           | 4         | 4          | 4         | 4          | 4        |
+
+![RPi4 Speedup (page-aligned)](doc/img/rp4a.png)
+
+#### Speedup (4KB, unaligned)
+
+| Aligment | `byte_copy` | `word_copy_ua` | `lssc_lf` | `lssc_lft` | `lssc_lr` | `lssc_lrt` | `memcpy` |
+|----------|-------------|----------------|-----------|------------|-----------|------------|----------|
+| 0→0      | 1           | 13             | 13        | 13         | 13        | 13         | 16       |
+| 8→0      | 1           | 13             | 13        | 13         | 13        | 13         | 16       |
+| 0→8      | 1           | 13             | 13        | 13         | 13        | 13         | 16       |
+| 1→1      | 1           | 10             | 13        | 13         | 13        | 12         | 16       |
+| 3→3      | 1           | 10             | 13        | 13         | 13        | 12         | 16       |
+| 0→1      | 1           | 10             | 5         | 5          | 5         | 5          | 11       |
+| 1→0      | 1           | 13             | 5         | 5          | 5         | 5          | 10       |
+| 3→7      | 1           | 10             | 5         | 5          | 5         | 5          | 11       |
+| 7→9      | 1           | 10             | 5         | 5          | 5         | 5          | 11       |
+
+![RPi4 Speedup (unaligned)](doc/img/rp4u.png)
+
+### i7U 155H, Linux, clang version 22.1.6 
 
 | Size    | `word_copy` | `byte_copy` | `lssc_lf` | `lssc_lft` | `lssc_lr` | `lssc_lrt` | `memcpy` |
 |---------|-------------|-------------|-----------|------------|-----------|------------|----------|
@@ -109,7 +141,7 @@ All speedups are rounded to nearest integer and relative to `byte_copy` of the s
 ![i7U Speedup (unaligned)](doc/img/i7Uu.png)
 
 
-### M4, Apple clang version 17.0.0
+### M4, Darwin, Apple clang version 17.0.0
 
 #### Speedup (page-aligned)
 
@@ -140,3 +172,7 @@ All speedups are rounded to nearest integer and relative to `byte_copy` of the s
 | 7→9      | 1           | 8              | 7         | 7          | 7         | 7          | 27       |
 
 ![M4 Speedup (unaligned)](doc/img/M4u.png)
+
+## Licence
+
+MIT, see `LICENSE.txt`. `dev/unity` carries its own.
