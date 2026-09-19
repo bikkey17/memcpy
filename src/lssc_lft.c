@@ -11,19 +11,23 @@
 #include <limits.h>
 #include "lssc.h"
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC optimize ("no-strict-aliasing")
+#endif
+
 static void heel(void *dest, MWORD_t val, size_t n)
 {
     #if 1 < MWORD_SIZE
     #if 2 < MWORD_SIZE
     #if 4 < MWORD_SIZE
     #if 8 < MWORD_SIZE
-    if (n & 8) *(uint64_t*)dest= val, dest = (uint64_t*)dest + 1, val >>= 64;
+    if (n & 8) *(uint64_t*)dest= (uint64_t)val, dest= (uint64_t*)dest + 1, val >>= 64;
     #endif
-    if (n & 4) *(uint32_t*)dest= val, dest = (uint32_t*)dest + 1, val >>= 32;
+    if (n & 4) *(uint32_t*)dest= (uint32_t)val, dest= (uint32_t*)dest + 1, val >>= 32;
     #endif
-    if (n & 2) *(uint16_t*)dest= val, dest = (uint16_t*)dest + 1, val >>= 16;
+    if (n & 2) *(uint16_t*)dest= (uint16_t)val, dest= (uint16_t*)dest + 1, val >>= 16;
     #endif
-    if (n & 1) *(uint8_t*)dest= val;
+    if (n & 1) *(uint8_t*)dest=  (uint8_t)val;
     #endif
 }
 
@@ -31,8 +35,11 @@ static void heel(void *dest, MWORD_t val, size_t n)
     if (((uintptr_t)dest) & sizeof(t))    \
     {                                     \
         if (n < sizeof(t))                \
-            return heel(dest, val, n);    \
-        *(t*)dest= val, n-= sizeof(t);    \
+        {                                 \
+            heel(dest, val, n);           \
+            return;                       \
+        }                                 \
+        *(t*)dest= (t)val, n-= sizeof(t); \
         if (!n)                           \
             return;                       \
         val>>= CHAR_BIT * sizeof(t);      \
@@ -70,7 +77,7 @@ static void head(void *dest, MWORD_t val, size_t n)
     #if 16 == MMIN_ALIGN
     }
     #endif
-    return heel(dest, val, n);
+    heel(dest, val, n);
 }
 
 #undef HEAD
@@ -93,43 +100,44 @@ void lssc_lft(void *dest, const void *src, size_t n)
     if (dest == src || 0 == n)
         return;
 
-    int h= sizeof(MWORD_t);
-    int i= (uintptr_t)src  & (h-1);
-    int j= (uintptr_t)dest & (h-1);
-    int w= 0;
+    size_t h= sizeof(MWORD_t);
+    size_t i= (uintptr_t)src  & (h-1);
+    size_t j= (uintptr_t)dest & (h-1);
+    size_t w= 0;
 
     MWORD_t *s= (MWORD_t*)((uintptr_t)src  & ~(uintptr_t)(h-1));
     MWORD_t *d= (MWORD_t*)((uintptr_t)dest & ~(uintptr_t)(h-1));
-    MWORD_t b= 0, m= 0; m= ~m;      /* no __uint128_t literals in gcc */
+    MWORD_t b= 0, m= 0; m= (MWORD_t)~m;      /* no __uint128_t literals in gcc */
 
     /* If the src or dest alignment is not at a MWORD_t boundary, we need to */
     /* merge the destination words from multiple source words.               */
 
     if (i || j)
     {
-        int t= h * CHAR_BIT, u= i * CHAR_BIT, v= j * CHAR_BIT;
+        size_t t= h * CHAR_BIT, u= i * CHAR_BIT, v= j * CHAR_BIT;
         MWORD_t a= *s++ >> u;       /* Read (partial) first word and discard */
                                     /* low bits that are not part of src.    */
-        b= *d & ~(m << v);          /* Preserve low margin.*/
+        b= *d & (MWORD_t)~(m << v); /* Preserve low margin.*/
 
         if (n < h - j)              /* This would break n -= h - j below and */
         {                           /* means all dest data fits into (*d).   */
             if (h - i < n)          /* If src data is split across two words,*/
                 a |= *s << (t - u); /* fetch and append second slice.        */
 
-            return head(dest, a, n);
+            head(dest, a, n);
+            return;
         }
 
         a<<= u;                     /* Shift data back to their src postion. */
         if (n < h - i)              /* All src data were in (*s)! */
         {
-            int k= u + n * CHAR_BIT;
-            a&= ~(m << k);          /* Discard bits not part of src.*/
+            size_t k= u + n * CHAR_BIT;
+            a&= (MWORD_t)~(m << k); /* Discard bits not part of src.*/
         }
 
         if (i != j)                 /* If src and dest alignment differ, we  */
         {                           /* need a load-shift-store loop.         */
-            w= v - u;
+            w= v - u;               /* safe: C99 6.2.5p9 and w+=t below      */
             if (v < u)
             {                       /* Reduce this to u < v by pretending    */
                 b|= a >> (u - v);   /* the bits in a were from dest (v+=t-u),*/
@@ -148,7 +156,7 @@ void lssc_lft(void *dest, const void *src, size_t n)
             while (h <= n)
             {                       /* While we can emit full words, repeat. */
                 a= *s++;            /* Load */
-                *d++= b | (a << w); /* Shift & Store */
+                *d++= b | (MWORD_t)(a << w); /* Shift & Store */
                 b= a >> (t - w);
                 n-= h;
             }
@@ -158,7 +166,7 @@ void lssc_lft(void *dest, const void *src, size_t n)
             b|= a;
             head(dest, b >> v, h - j);
             d++;
-            b = 0;
+            b= 0;
             n-= h - j;
 
             /* Fall through to share code with !i && !j case.*/
@@ -171,7 +179,7 @@ void lssc_lft(void *dest, const void *src, size_t n)
 
     if (n)
     {                               /* Some data left to be written.*/
-        int k = n * CHAR_BIT;
+        size_t k= n * CHAR_BIT;
         if (w < k)                  /* If we haven't read all data yet,*/
             b |= (*s << w);         /* load them from the last src word.*/
         heel(d, b, n);
@@ -183,17 +191,20 @@ void init_lft(void *dest, int ch, size_t n)
     if (0 == n)
         return;
 
-    int h= sizeof(MWORD_t);
-    int j= (uintptr_t)dest & (h-1);
+    size_t h= sizeof(MWORD_t);
+    size_t j= (uintptr_t)dest & (h-1);
     MWORD_t *d= (MWORD_t*)((uintptr_t)dest & ~(uintptr_t)(h-1));
-    MWORD_t s = (unsigned char)ch;
-    for (int t = CHAR_BIT; t < CHAR_BIT * MWORD_SIZE; t+= t)
+    MWORD_t s= (unsigned char)ch;
+    for (int t= CHAR_BIT; t < CHAR_BIT * MWORD_SIZE; t+= t)
         s|= s << t;
 
     if (j)
     {
         if (n < h - j)
-            return head(dest, s >> (j * CHAR_BIT), n);
+        {
+            head(dest, s >> (j * CHAR_BIT), n);
+            return;
+        }
         head(dest, s >> (j * CHAR_BIT), h - j);
         d++, n-= h - j;
     }
@@ -211,14 +222,17 @@ void zero_lft(void *dest, size_t n)
     if (0 == n)
         return;
 
-    int h= sizeof(MWORD_t);
-    int j= (uintptr_t)dest & (h-1);
+    size_t h= sizeof(MWORD_t);
+    size_t j= (uintptr_t)dest & (h-1);
     MWORD_t *d= (MWORD_t*)((uintptr_t)dest & ~(uintptr_t)(h-1));
 
     if (j)
     {
         if (n < h - j)
-            return head(dest, 0, n);
+        {
+            head(dest, 0, n);
+            return;
+        }
         head(dest, 0, h - j);
         d++, n-= h - j;
     }

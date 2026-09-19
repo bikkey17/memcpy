@@ -37,6 +37,8 @@ C_FLAGS        := -std=c11 $(OPT) -g -Wall -Wshadow \
                   -Werror=incompatible-pointer-types \
                   -I$(SRC_DIR) $(XFLAGS)
 
+LSSC_FLAGS     := -fno-strict-aliasing -Werror -std=c99 -pedantic-errors -Wconversion
+
 # Unity is compiled without setjmp/longjmp and without the math helpers: this
 # is freestanding-ish code and a failing assertion should just abort the test.
 C_FLAGS_TEST   := -I$(UNITY_DIR) \
@@ -156,7 +158,7 @@ clean:
 # they must stay compilable on their own, since users just copy them.
 $(OBJ_FILES): $(OUT_DIR)/%.o: $(SRC_DIR)/%.c $(PRJ_DIR)/Makefile
 	@mkdir -p $(@D)
-	$(CC) $(C_FLAGS) -MMD -MP -c $< -o $@
+	$(CC) $(C_FLAGS) $(LSSC_FLAGS) -MMD -MP -c $< -o $@
 
 $(UNITY_OBJ): $(UNITY_DIR)/unity.c $(PRJ_DIR)/Makefile
 	@mkdir -p $(@D)

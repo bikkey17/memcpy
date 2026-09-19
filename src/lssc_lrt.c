@@ -11,19 +11,23 @@
 #include <limits.h>
 #include "lssc.h"
 
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC optimize ("no-strict-aliasing")
+#endif
+
 static void head(void *end, MWORD_t val, size_t n)
 {
     #if 1 < MWORD_SIZE
     #if 2 < MWORD_SIZE
     #if 4 < MWORD_SIZE
     #if 8 < MWORD_SIZE
-    if (n & 8) end = (uint64_t*)end - 1, *(uint64_t*)end= val >> (MWORD_BITS - 64), val <<= 64;
+    if (n & 8) end= (uint64_t*)end - 1, *(uint64_t*)end= (uint64_t)(val >> (MWORD_BITS - 64)), val <<= 64;
     #endif
-    if (n & 4) end = (uint32_t*)end - 1, *(uint32_t*)end= val >> (MWORD_BITS - 32), val <<= 32;
+    if (n & 4) end= (uint32_t*)end - 1, *(uint32_t*)end= (uint32_t)(val >> (MWORD_BITS - 32)), val <<= 32;
     #endif
-    if (n & 2) end = (uint16_t*)end - 1, *(uint16_t*)end= val >> (MWORD_BITS - 16), val <<= 16;
+    if (n & 2) end= (uint16_t*)end - 1, *(uint16_t*)end= (uint16_t)(val >> (MWORD_BITS - 16)), val <<= 16;
     #endif
-    if (n & 1) end = (uint8_t*)end - 1,  *(uint8_t*)end = val >> (MWORD_BITS -  8);
+    if (n & 1) end= (uint8_t*)end - 1,   *(uint8_t*)end=  (uint8_t)(val >> (MWORD_BITS -  8));
     #endif
 }
 
@@ -31,9 +35,12 @@ static void head(void *end, MWORD_t val, size_t n)
     if (((uintptr_t)end) & sizeof(t))                  \
     {                                                  \
         if (n < sizeof(t))                             \
-            return head(end, val, n);                  \
+        {                                              \
+            head(end, val, n);                         \
+            return;                                    \
+        }                                              \
         end= ((t*)end) - 1;                            \
-        *(t*)end= val >> (MWORD_BITS - CHAR_BIT * sizeof(t)); \
+        *(t*)end= (t)(val >> (MWORD_BITS - CHAR_BIT * sizeof(t))); \
         n-= sizeof(t);                                 \
         if (!n)                                        \
             return;                                    \
@@ -73,7 +80,7 @@ static void heel(void *dest, MWORD_t val, size_t n)
     #if 16 == MMIN_ALIGN
     }
     #endif
-    return head(end, val, n);
+    head(end, val, n);
 }
 
 #undef HEEL
@@ -96,43 +103,44 @@ void lssc_lrt(void *dest, const void *src, size_t n)
     if (dest == src || 0 == n)
         return;
 
-    int h= sizeof(MWORD_t);
-    int i= ~((uintptr_t)src  + n - 1) & (h-1);
-    int j= ~((uintptr_t)dest + n - 1) & (h-1);
-    int w= 0;
+    size_t h= sizeof(MWORD_t);
+    size_t i= ~((uintptr_t)src  + n - 1) & (h-1);
+    size_t j= ~((uintptr_t)dest + n - 1) & (h-1);
+    size_t w= 0;
 
     MWORD_t *s= (MWORD_t*)(((uintptr_t)src  + n - 1) & ~(uintptr_t)(h-1));
     MWORD_t *d= (MWORD_t*)(((uintptr_t)dest + n - 1) & ~(uintptr_t)(h-1));
-    MWORD_t b= 0, m= ~b;            /* no __uint128_t literals in gcc */
+    MWORD_t b= 0, m= (MWORD_t)~b;          /* no __uint128_t literals in gcc */
 
     /* If either src or dest is not MWORD_t aligned, we need to */
     /* merge each destination word from multiple source words.  */
 
     if (i || j)
     {
-        int t= h * CHAR_BIT, u= i * CHAR_BIT, v= j * CHAR_BIT;
-        MWORD_t a= *s-- << u;       /* Read (partial) last word and discard */
+        size_t t= h * CHAR_BIT, u= i * CHAR_BIT, v= j * CHAR_BIT;
+        MWORD_t a= (MWORD_t)(*s-- << u); /* Read (partial) last word & discard */
                                     /* high bits that are not part of src.  */
-        b= *d & ~(m >> v);          /* Preserve high margin of dest.*/
+        b= *d & (MWORD_t)~(m >> v); /* Preserve high margin of dest.*/
 
         if (n < h - j)              /* This would break n -= h - j below and */
         {                           /* means all dest data fits into (*d).   */
             if (h - i < n)          /* If src data is split across two words,*/
                 a |= *s >> (t - u); /* fetch and append second slice.        */
 
-            return heel(dest, a, n);
+            heel(dest, a, n);
+            return;
         }
 
         a>>= u;                     /* Shift data back to their src postion. */
         if (n < h - i)              /* All src data were in (*s)! */
         {
-            int k= u + n * CHAR_BIT;
-            a&= ~(m >> k);          /* Discard bits not part of src.*/
+            size_t k= u + n * CHAR_BIT;
+            a&= (MWORD_t)~(m >> k); /* Discard bits not part of src.*/
         }
 
         if (i != j)                 /* If src and dest alignment differ, we  */
         {                           /* need a load-shift-store loop.         */
-            w= v - u;
+            w= v - u;               /* safe: C99 6.2.5p9 and w+=t below      */
             if (v < u)              /* If there's more trailing bits in dest,*/
             {                       /* reduce this to u < v by pretending    */
                 b|= a << (u - v);   /* the bits in a were from dest (v+=t-u),*/
@@ -141,27 +149,27 @@ void lssc_lrt(void *dest, const void *src, size_t n)
             } 
             b |= (a >> w);
             if (j)                      /* Reverse mirror of lssc_lft.       */
-                heel(d, b << v, h - j); /* Data is the low h-j bytes of *d   */
+                heel(d, (MWORD_t)(b << v), h - j); /* Data @ low h-j bytes of *d */
             else
                 *d= b;                 
             d--;
-            b= a << (t - w);        /* Shift excess bits into b.*/
+            b= (MWORD_t)(a << (t - w)); /* Shift excess bits into b.*/
             n-= h - j;
 
             while (h <= n)
             {                       /* While we can emit full words, repeat. */
                 a= *s--;            /* Load */
                 *d--= b | (a >> w); /* Shift & Store */
-                b= a << (t - w);
+                b= (MWORD_t)(a << (t - w));
                 n-= h;
             }
         }
         else
         {                           /* Optimise when we don't need to shift. */
             b|= a;
-            heel(d, b << v, h - j);
+            heel(d, (MWORD_t)(b << v), h - j);
             d--;
-            b = 0;
+            b= 0;
             n-= h - j;
 
             /* Fall through to share code with !i && !j case.*/
@@ -174,7 +182,7 @@ void lssc_lrt(void *dest, const void *src, size_t n)
 
     if (n)
     {                               /* Some data left to be written.*/
-        int k = n * CHAR_BIT;
+        size_t k= n * CHAR_BIT;
         if (w < k)                  /* If we haven't read all data yet, */
             b |= (*s >> w);         /* load them from the last src word.*/
         head(d + 1, b, n);

@@ -7,6 +7,9 @@ wide registers to improve throughput over byte-sized access. Rarely useful
 except as baseline when you don't have optimising compilers or an MMU dealing
 with alignment faults. Do your benchmarks.
 
+If you have a working libc, or speed is not an issue, don't waste your time
+here.
+
 | Functionality | Endianness | Direction | Thread-Safe | Implemented by |
 |---------------|------------|-----------|-------------|----------------|
 | `memcpy`      | little     | forward   | no          | `lssc_lf`      |
@@ -26,7 +29,15 @@ with alignment faults. Do your benchmarks.
 | `bzero`       | big        | (forward) | no          | TBD            |
 | `bzero`       | big        | (forward) | yes         | TBD            |
 
+This is not a library. Build your own wrappers.
+
 ```c
+void *memcpy(void * restrict dest, const void * restrict src, size_t n)
+{
+    lssc_lft(dest, src, n);
+    return dest;
+}
+
 void *memmove(void *dest, const void *src, size_t n)
 {
     if (src < dest)
@@ -34,6 +45,17 @@ void *memmove(void *dest, const void *src, size_t n)
     else
         lssc_lft(dest, src, n);
     return dest;
+}
+
+void *memset(void *dest, int c, size_t n)
+{
+    init_lft(dest, c, n );
+    return dest;
+}
+
+void bzero(void *dest, size_t n)
+{
+    zero_lft(dest, n );
 }
 ```
 
